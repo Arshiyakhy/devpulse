@@ -12,6 +12,33 @@ app.get("/auth/login", (c) => {
   const redirectUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=repo`;
   return c.redirect(redirectUrl);
 });
-
+app.get("/auth/callback", async (c) => {
+  const code = c.req.query("code");
+  const tokenResponse = await fetch(
+    "https://github.com/login/oauth/access_token",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code: code,
+      }),
+    },
+  );
+  const tokenData = await tokenResponse.json();
+  const profile = await fetch("https://api.github.com/user", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${tokenData.access_token}`,
+      Accept: "application/json",
+    },
+  });
+  const profileData = await profile.json();
+  return c.json(profileData);
+});
 serve({ fetch: app.fetch, port: 3000 });
 console.log("Server running on http://localhost:3000");
