@@ -1,6 +1,13 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import "dotenv/config";
+import { config } from "dotenv";
+import path from "path";
+import { db, users } from "@devpulse/db";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = new Hono();
 
@@ -38,6 +45,22 @@ app.get("/auth/callback", async (c) => {
     },
   });
   const profileData = await profile.json();
+  await db
+    .insert(users)
+    .values({
+      githubId: profileData.id,
+      username: profileData.login,
+      avatarUrl: profileData.avatar_url,
+      accessToken: tokenData.access_token,
+    })
+    .onConflictDoUpdate({
+      target: users.githubId,
+      set: {
+        username: profileData.login,
+        avatarUrl: profileData.avatar_url,
+        accessToken: tokenData.access_token,
+      },
+    });
   return c.json(profileData);
 });
 serve({ fetch: app.fetch, port: 3000 });
