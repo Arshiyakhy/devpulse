@@ -5,7 +5,8 @@ import path from "path";
 import { db, sessions, users } from "@devpulse/db";
 import { fileURLToPath } from "url";
 import { randomBytes } from "crypto";
-import { setCookie } from "hono/cookie";
+import { setCookie, getCookie } from "hono/cookie";
+import { eq } from "drizzle-orm";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,6 +80,28 @@ app.get("/auth/callback", async (c) => {
     path: "/",
   });
   return c.json(profileData);
+});
+app.get("/auth/me", async (c) => {
+  const sessionId = getCookie(c, "session_id");
+  if (!sessionId) {
+    return c.json({ error: "Not logged in" }, 401);
+  }
+  const [session] = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.id, sessionId));
+  if (!session || session.expiresAt < new Date()) {
+    return c.json({ error: "Session expired" }, 401);
+  }
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, session.userId));
+  return c.json({
+    githubId: user?.githubId,
+    username: user?.username,
+    avatarUrl: user?.avatarUrl,
+  });
 });
 serve({ fetch: app.fetch, port: 3000 });
 console.log("Server running on http://localhost:3000");

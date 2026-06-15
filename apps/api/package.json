@@ -21,6 +21,7 @@
     "@devpulse/db": "workspace:*",
     "@hono/node-server": "^2.0.4",
     "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.12.25"
   },
   "devDependencies": {
