@@ -2,8 +2,9 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { config } from "dotenv";
 import path from "path";
-import { db, users } from "@devpulse/db";
+import { db, sessions, users } from "@devpulse/db";
 import { fileURLToPath } from "url";
+import { randomBytes } from "crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,7 +46,7 @@ app.get("/auth/callback", async (c) => {
     },
   });
   const profileData = await profile.json();
-  await db
+  const [user] = await db
     .insert(users)
     .values({
       githubId: profileData.id,
@@ -60,7 +61,15 @@ app.get("/auth/callback", async (c) => {
         avatarUrl: profileData.avatar_url,
         accessToken: tokenData.access_token,
       },
-    });
+    })
+    .returning();
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 7 * 24);
+  const sessionId = randomBytes(32).toString("hex");
+  await db.insert(sessions).values({
+    id: sessionId,
+    userId: user!.id,
+    expiresAt: expiresAt,
+  });
   return c.json(profileData);
 });
 serve({ fetch: app.fetch, port: 3000 });
