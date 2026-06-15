@@ -5,6 +5,7 @@ import path from "path";
 import { db, sessions, users } from "@devpulse/db";
 import { fileURLToPath } from "url";
 import { randomBytes } from "crypto";
+import { setCookie } from "hono/cookie";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,6 +70,13 @@ app.get("/auth/callback", async (c) => {
     id: sessionId,
     userId: user!.id,
     expiresAt: expiresAt,
+  });
+  setCookie(c, "session_id", sessionId, {
+    httpOnly: true,
+    secure: false, // true in production (requires HTTPS)
+    sameSite: "Lax",
+    maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
+    path: "/",
   });
   return c.json(profileData);
 });
