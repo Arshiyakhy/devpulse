@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { config } from "dotenv";
 import path from "path";
@@ -13,6 +14,13 @@ const __dirname = path.dirname(__filename);
 config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = new Hono();
+app.use(
+  "*",
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  }),
+);
 
 app.get("/", (c) => {
   return c.json({ message: "DevPulse API is running" });
