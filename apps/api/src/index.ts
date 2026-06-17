@@ -8,12 +8,18 @@ import { fileURLToPath } from "url";
 import { randomBytes } from "crypto";
 import { setCookie, getCookie, deleteCookie } from "hono/cookie";
 import { eq } from "drizzle-orm";
+import { createMiddleware } from "hono/factory";
+
+type Variables = {
+  user: typeof users.$inferSelect;
+};
+
+const app = new Hono<{ Variables: Variables }>();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 config({ path: path.resolve(__dirname, "../../../.env") });
 
-const app = new Hono();
 app.use(
   "*",
   cors({
@@ -21,7 +27,31 @@ app.use(
     credentials: true,
   }),
 );
+const requireAuth = createMiddleware(async (c, next) => {
+  const sessionId = getCookie(c, "session_id");
+  if (!sessionId) {
+    return c.json({ error: "Not logged in" }, 401);
+  }
 
+  const [session] = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.id, sessionId));
+  if (!session || session.expiresAt < new Date()) {
+    return c.json({ error: "Session expired" }, 401);
+  }
+
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, session.userId));
+  if (!user) {
+    return c.json({ error: "User not found" }, 401);
+  }
+
+  c.set("user", user);
+  await next();
+});
 app.get("/", (c) => {
   return c.json({ message: "DevPulse API is running" });
 });
@@ -89,22 +119,8 @@ app.get("/auth/callback", async (c) => {
   });
   return c.redirect("http://localhost:5173");
 });
-app.get("/auth/me", async (c) => {
-  const sessionId = getCookie(c, "session_id");
-  if (!sessionId) {
-    return c.json({ error: "Not logged in" }, 401);
-  }
-  const [session] = await db
-    .select()
-    .from(sessions)
-    .where(eq(sessions.id, sessionId));
-  if (!session || session.expiresAt < new Date()) {
-    return c.json({ error: "Session expired" }, 401);
-  }
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, session.userId));
+app.get("/auth/me", requireAuth, async (c) => {
+  const user = c.get("user");
   return c.json({
     githubId: user?.githubId,
     username: user?.username,
@@ -119,6 +135,18 @@ app.get("/auth/logout", async (c) => {
     return c.json({ confirm: "it got deleted" });
   }
   return c.json({ confirm: "it did not get deleted" });
+});
+app.get("/api/repos", requireAuth, async (c) => {
+  const user = c.get("user");
+  const accessToken = user?.accessToken;
+  const reposResponse = await fetch("https://api.github.com/user/repos", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+  });
+  const repos = await reposResponse.json();
+  return c.json({ response: repos });
 });
 serve({ fetch: app.fetch, port: 3000 });
 console.log("Server running on http://localhost:3000");
