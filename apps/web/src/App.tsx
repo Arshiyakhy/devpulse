@@ -27,7 +27,12 @@ function App() {
         setLoading(false);
       });
   }, []);
-
+  const handleLogout = async () => {
+    await fetch('http://localhost:3000/auth/logout', {
+      credentials: "include"
+    })
+    setUser(null)
+  }
   if (loading) return <div>Loading...</div>;
 
   if (!user)
@@ -42,6 +47,7 @@ function App() {
     <div>
       {<h1>{user.username}</h1>}
       {<img src={user.avatarUrl} alt={user.username} />}
+      {<button onClick={handleLogout}>Logout</button>}
     </div>
   );
 }

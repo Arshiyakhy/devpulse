@@ -6,7 +6,7 @@ import path from "path";
 import { db, sessions, users } from "@devpulse/db";
 import { fileURLToPath } from "url";
 import { randomBytes } from "crypto";
-import { setCookie, getCookie } from "hono/cookie";
+import { setCookie, getCookie, deleteCookie } from "hono/cookie";
 import { eq } from "drizzle-orm";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -87,7 +87,7 @@ app.get("/auth/callback", async (c) => {
     maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
     path: "/",
   });
-  return c.json(profileData);
+  return c.redirect("http://localhost:5173");
 });
 app.get("/auth/me", async (c) => {
   const sessionId = getCookie(c, "session_id");
@@ -110,6 +110,15 @@ app.get("/auth/me", async (c) => {
     username: user?.username,
     avatarUrl: user?.avatarUrl,
   });
+});
+app.get("/auth/logout", async (c) => {
+  const sessionId = getCookie(c, "session_id");
+  if (sessionId) {
+    await db.delete(sessions).where(eq(sessions.id, sessionId));
+    deleteCookie(c, "session_id");
+    return c.json({ confirm: "it got deleted" });
+  }
+  return c.json({ confirm: "it did not get deleted" });
 });
 serve({ fetch: app.fetch, port: 3000 });
 console.log("Server running on http://localhost:3000");
