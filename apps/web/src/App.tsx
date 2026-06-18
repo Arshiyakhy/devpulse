@@ -7,6 +7,7 @@ interface User {
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [repos, setRepos] = useState<any[]>([]);
 
   useEffect(() => {
     fetch("http://localhost:3000/auth/me", {
@@ -27,12 +28,19 @@ function App() {
         setLoading(false);
       });
   }, []);
+  useEffect(() => {
+    if (!user) return;
+
+    fetch("http://localhost:3000/api/repos", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => setRepos(data.response));
+  }, [user]);
   const handleLogout = async () => {
-    await fetch('http://localhost:3000/auth/logout', {
-      credentials: "include"
-    })
-    setUser(null)
-  }
+    await fetch("http://localhost:3000/auth/logout", {
+      credentials: "include",
+    });
+    setUser(null);
+  };
   if (loading) return <div>Loading...</div>;
 
   if (!user)
@@ -48,6 +56,13 @@ function App() {
       {<h1>{user.username}</h1>}
       {<img src={user.avatarUrl} alt={user.username} />}
       {<button onClick={handleLogout}>Logout</button>}
+      {
+        <ul>
+          {repos.map((repo) => (
+            <li key={repo.id}>{repo.name}</li>
+          ))}
+        </ul>
+      }
     </div>
   );
 }
