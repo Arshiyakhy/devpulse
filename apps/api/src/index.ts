@@ -148,5 +148,28 @@ app.get("/api/repos", requireAuth, async (c) => {
   const repos = await reposResponse.json();
   return c.json({ response: repos });
 });
+app.get("/api/commits", requireAuth, async (c) => {
+  const user = c.get("user");
+  const accessToken = user?.accessToken;
+  const reposResponse = await fetch("https://api.github.com/user/repos", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+  });
+  const repos = await reposResponse.json();
+  const commitPromises = repos.map(
+    (repo: { owner: { login: string }; name: string }) => {
+      return fetch(
+        `https://api.github.com/repos/${repo.owner.login}/${repo.name}/commits`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      ).then((res) => res.json());
+    },
+  );
+  const allCommitsPerRepo = await Promise.all(commitPromises);
+  return c.json({ response: allCommitsPerRepo });
+});
 serve({ fetch: app.fetch, port: 3000 });
 console.log("Server running on http://localhost:3000");
