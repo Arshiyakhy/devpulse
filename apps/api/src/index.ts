@@ -169,7 +169,33 @@ app.get("/api/commits", requireAuth, async (c) => {
     },
   );
   const allCommitsPerRepo = await Promise.all(commitPromises);
-  return c.json({ response: allCommitsPerRepo });
+  const allCommits = allCommitsPerRepo.flat();
+  const dayNames = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const commitsByDay: Record<string, number> = {
+    Sunday: 0,
+    Monday: 0,
+    Tuesday: 0,
+    Wednesday: 0,
+    Thursday: 0,
+    Friday: 0,
+    Saturday: 0,
+  };
+  for (const commit of allCommits) {
+    const dateString = commit.commit.author.date;
+    const date = new Date(dateString);
+    const dayIndex = date.getDay();
+    const dayName = dayNames[dayIndex]!;
+    commitsByDay[dayName]!++;
+  }
+  return c.json({ response: commitsByDay });
 });
 serve({ fetch: app.fetch, port: 3000 });
 console.log("Server running on http://localhost:3000");
