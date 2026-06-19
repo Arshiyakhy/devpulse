@@ -210,10 +210,33 @@ app.get("/api/commits", requireAuth, async (c) => {
       languageCounts[repo.language] = 1;
     }
   }
+  const uniqueDatesSet = new Set<string>();
+  for (const commit of allCommits) {
+    const dateString = commit.commit.author.date;
+    const dateOnly = dateString.split("T")[0]; // "2026-06-15T14:32:00Z" -> "2026-06-15"
+    uniqueDatesSet.add(dateOnly);
+  }
+  const sortedDates = Array.from(uniqueDatesSet).sort();
+  let currentStreak = 1;
+  let longestStreak = 1;
+  for (let i = 1; i < sortedDates.length; i++) {
+    const currentDate = new Date(sortedDates[i]!);
+    const previousDate = new Date(sortedDates[i - 1]!);
+    const dayDifference =
+      (currentDate.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (dayDifference === 1) currentStreak!++;
+    if (currentStreak > longestStreak) {
+      longestStreak = currentStreak;
+    }
+  }
   return c.json({
     day: commitsByDay,
     hour: commitsByHour,
     languages: languageCounts,
+    streaks: {
+      current: currentStreak,
+      longest: longestStreak,
+    },
   });
 });
 serve({ fetch: app.fetch, port: 3000 });
