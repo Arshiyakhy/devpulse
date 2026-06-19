@@ -225,17 +225,34 @@ app.get("/api/commits", requireAuth, async (c) => {
     const dayDifference =
       (currentDate.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24);
     if (dayDifference === 1) currentStreak!++;
+    else currentStreak = 1;
     if (currentStreak > longestStreak) {
       longestStreak = currentStreak;
     }
   }
+  const commitsByDate: Record<string, number> = {};
+  for (const commit of allCommits) {
+    const dateString = commit.commit.author.date;
+    const dateOnly = dateString.split("T")[0];
+    commitsByDate[dateOnly] = (commitsByDate[dateOnly] || 0) + 1;
+  }
+  let mostActiveDay = "";
+  let mostActiveDayCount = 0;
+
+  for (const date in commitsByDate) {
+    if (commitsByDate[date]! > mostActiveDayCount) {
+      mostActiveDayCount = commitsByDate[date]!;
+      mostActiveDay = date;
+    }
+  }
+
   return c.json({
     day: commitsByDay,
     hour: commitsByHour,
     languages: languageCounts,
     streaks: {
-      current: currentStreak,
       longest: longestStreak,
+      mostActiveDay: mostActiveDay,
     },
   });
 });
