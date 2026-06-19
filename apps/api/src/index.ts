@@ -188,14 +188,21 @@ app.get("/api/commits", requireAuth, async (c) => {
     Friday: 0,
     Saturday: 0,
   };
+  const commitsByHour: Record<number, number> = {};
+  for (let i = 0; i < 24; i++) {
+    commitsByHour[i] = 0;
+  }
   for (const commit of allCommits) {
     const dateString = commit.commit.author.date;
     const date = new Date(dateString);
     const dayIndex = date.getDay();
     const dayName = dayNames[dayIndex]!;
     commitsByDay[dayName]!++;
+    const hour = date.getHours();
+    commitsByHour[hour]!++;
   }
-  return c.json({ response: commitsByDay });
+
+  return c.json({ day: commitsByDay, hour: commitsByHour });
 });
 serve({ fetch: app.fetch, port: 3000 });
 console.log("Server running on http://localhost:3000");
