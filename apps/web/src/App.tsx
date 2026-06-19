@@ -3,6 +3,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Moon, Sun } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -46,6 +48,19 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    return saved === "dark";
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+  }, [isDark]);
 
   useEffect(() => {
     fetch("http://localhost:3000/auth/me", {
@@ -95,7 +110,12 @@ function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-6">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-6 relative">
+        <div className="absolute top-6 right-6 flex items-center gap-2">
+          <Sun className="h-4 w-4 text-muted-foreground" />
+          <Switch checked={isDark} onCheckedChange={setIsDark} />
+          <Moon className="h-4 w-4 text-muted-foreground" />
+        </div>
         <h1 className="text-5xl font-bold tracking-tight">DevPulse</h1>
         <p className="text-muted-foreground max-w-sm text-center">
           Your GitHub activity, wrapped. Weekly and monthly insights into how
@@ -156,9 +176,16 @@ function App() {
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
-            Logout
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Sun className="h-4 w-4 text-muted-foreground" />
+              <Switch checked={isDark} onCheckedChange={setIsDark} />
+              <Moon className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <Button variant="outline" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
         </div>
 
         {statsLoading && (
