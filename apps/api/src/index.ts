@@ -192,6 +192,7 @@ app.get("/api/commits", requireAuth, async (c) => {
   for (let i = 0; i < 24; i++) {
     commitsByHour[i] = 0;
   }
+  const languageCounts: Record<string, number> = {};
   for (const commit of allCommits) {
     const dateString = commit.commit.author.date;
     const date = new Date(dateString);
@@ -201,8 +202,19 @@ app.get("/api/commits", requireAuth, async (c) => {
     const hour = date.getHours();
     commitsByHour[hour]!++;
   }
-
-  return c.json({ day: commitsByDay, hour: commitsByHour });
+  for (const repo of repos) {
+    if (!repo.language) continue;
+    if (languageCounts[repo.language]) {
+      languageCounts[repo.language]!++;
+    } else {
+      languageCounts[repo.language] = 1;
+    }
+  }
+  return c.json({
+    day: commitsByDay,
+    hour: commitsByHour,
+    languages: languageCounts,
+  });
 });
 serve({ fetch: app.fetch, port: 3000 });
 console.log("Server running on http://localhost:3000");
