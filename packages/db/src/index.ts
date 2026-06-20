@@ -1,10 +1,15 @@
 import { config } from "dotenv";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-config({ path: path.resolve(__dirname, "../../../.env") });
+
+const envPath = path.resolve(__dirname, "../../../.env");
+if (fs.existsSync(envPath)) {
+  config({ path: envPath });
+}
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";

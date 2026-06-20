@@ -9,6 +9,7 @@ import { randomBytes } from "crypto";
 import { setCookie, getCookie, deleteCookie } from "hono/cookie";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
+import fs from "fs";
 
 type Variables = {
   user: typeof users.$inferSelect;
@@ -18,7 +19,10 @@ const app = new Hono<{ Variables: Variables }>();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-config({ path: path.resolve(__dirname, "../../../.env") });
+const envPath = path.resolve(__dirname, "../../../.env");
+if (fs.existsSync(envPath)) {
+  config({ path: envPath });
+}
 
 app.use(
   "*",
