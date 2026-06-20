@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +8,148 @@ import { Badge } from "@/components/ui/badge";
 import { Moon, Sun, Terminal, ChevronRight, RotateCcw } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { OrbitalBackground } from "@/components/ui/OrbitalBackground";
+import { ParticleBreak, EarthquakeShake, ParticleEngineProvider } from "@/components/ui/ParticleBreak";
+
+// ---------------- Personality classification ----------------
+// Pure rule-based logic — no AI call needed for this part.
+
+function getPersonality(stats: Stats, totalCommits: number, peakHourNum: number) {
+  const weekendCommits = (stats.day["Saturday"] ?? 0) + (stats.day["Sunday"] ?? 0);
+  const weekendRatio = totalCommits > 0 ? weekendCommits / totalCommits : 0;
+
+  if (peakHourNum >= 22 || peakHourNum < 5) {
+    return { title: "Night Owl", emoji: "🦉", desc: "Most of your commits land after dark." };
+  }
+  if (peakHourNum >= 5 && peakHourNum < 9) {
+    return { title: "Early Bird", emoji: "🌅", desc: "You're shipping code before most people wake up." };
+  }
+  if (weekendRatio > 0.35) {
+    return { title: "Weekend Warrior", emoji: "⚔️", desc: "Weekends are when you really lock in." };
+  }
+  if (stats.streaks.longest >= 7) {
+    return { title: "Consistency Machine", emoji: "🔥", desc: "You show up, day after day." };
+  }
+  return { title: "Steady Shipper", emoji: "🚀", desc: "Reliable, focused, and always building." };
+}
+
+// ---------------- Activity clock (24h radial view) ----------------
+
+function ActivityClock({ hourStats }: { hourStats: Record<string, number> }) {
+  const cx = 140,
+    cy = 140,
+    innerR = 52,
+    maxBarLen = 70;
+  const hours = Array.from({ length: 24 }, (_, i) => ({
+    hour: i,
+    commits: hourStats[String(i)] ?? 0,
+  }));
+  const maxCommits = Math.max(...hours.map((h) => h.commits), 1);
+  const peak = hours.reduce((m, h) => (h.commits > m.commits ? h : m), hours[0]);
+
+  const cardinals = [
+    { label: "12 AM", angle: -Math.PI / 2 },
+    { label: "6 AM", angle: 0 },
+    { label: "12 PM", angle: Math.PI / 2 },
+    { label: "6 PM", angle: Math.PI },
+  ];
+
+  return (
+    <div className="flex items-center justify-center h-[300px] w-full">
+      <svg width="280" height="280" viewBox="0 0 280 280">
+        <defs>
+          <filter id="peak-glow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <circle
+          cx={cx}
+          cy={cy}
+          r={innerR + maxBarLen + 2}
+          fill="none"
+          stroke="rgba(255,255,255,0.06)"
+          strokeWidth="1"
+          strokeDasharray="2 5"
+        />
+        <circle cx={cx} cy={cy} r={innerR} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+
+        {cardinals.map(({ label, angle }) => {
+          const r = innerR + maxBarLen + 20;
+          return (
+            <text
+              key={label}
+              x={cx + r * Math.cos(angle)}
+              y={cy + r * Math.sin(angle) + 4}
+              textAnchor="middle"
+              fontSize="9"
+              fontFamily="monospace"
+              fill="var(--muted-foreground)"
+              opacity="0.6"
+            >
+              {label}
+            </text>
+          );
+        })}
+
+        {hours.map(({ hour, commits }) => {
+          const angle = (hour / 24) * 2 * Math.PI - Math.PI / 2;
+          const barLen = commits === 0 ? 3 : Math.max(7, (commits / maxCommits) * maxBarLen);
+          const isPeak = hour === peak.hour;
+          const x1 = cx + innerR * Math.cos(angle);
+          const y1 = cy + innerR * Math.sin(angle);
+          const x2 = cx + (innerR + barLen) * Math.cos(angle);
+          const y2 = cy + (innerR + barLen) * Math.sin(angle);
+          const opacity = commits === 0 ? 0.12 : isPeak ? 1 : 0.35 + (commits / maxCommits) * 0.5;
+
+          return (
+            <line
+              key={hour}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              strokeWidth={isPeak ? 5 : 3.5}
+              stroke="var(--primary)"
+              strokeOpacity={opacity}
+              strokeLinecap="round"
+              filter={isPeak ? "url(#peak-glow)" : undefined}
+            />
+          );
+        })}
+
+        <circle cx={cx} cy={cy} r={40} style={{ fill: "color-mix(in oklch, var(--card) 85%, transparent)" }} />
+        <circle cx={cx} cy={cy} r={40} fill="none" stroke="var(--primary)" strokeOpacity="0.2" strokeWidth="1" />
+        <text
+          x={cx}
+          y={cy - 5}
+          textAnchor="middle"
+          fontSize="16"
+          fontWeight="bold"
+          fontFamily="monospace"
+          fill="var(--primary)"
+        >
+          {formatHour(String(peak.hour))}
+        </text>
+        <text
+          x={cx}
+          y={cy + 13}
+          textAnchor="middle"
+          fontSize="7.5"
+          fontFamily="monospace"
+          fill="var(--muted-foreground)"
+          opacity="0.6"
+          letterSpacing="1.5"
+        >
+          PEAK HOUR
+        </text>
+      </svg>
+    </div>
+  );
+}
 
 interface User {
   githubId: number;
@@ -85,6 +228,8 @@ interface StatCardData {
   value: ReactNode;
   caption?: string;
   accent: string;
+  visual?: ReactNode; // optional custom content below the value (e.g. the clock)
+  element: "fire" | "earthquake" | "wind" | "flood";
 }
 
 function StatScreen({
@@ -92,41 +237,54 @@ function StatScreen({
   index,
   total,
   onAdvance,
+  isExiting,
 }: {
   card: StatCardData;
   index: number;
   total: number;
   onAdvance: () => void;
+  isExiting: boolean;
 }) {
+  const isShaking = isExiting && card.element === "earthquake";
   return (
-    <div
+    <motion.div
+      key={index}
       onClick={onAdvance}
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
       className="relative w-full max-w-2xl cursor-pointer select-none group"
     >
-      <Card
-        key={index}
-        className="bg-card/60 backdrop-blur-xl border border-border/60 shadow-2xl shadow-black/30 overflow-hidden animate-in fade-in zoom-in-95 duration-500"
-      >
-        <CardContent className="py-20 px-10 text-center flex flex-col items-center gap-6">
-          <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
-            {card.label}
-          </p>
-          <p className={`text-7xl md:text-8xl font-black tracking-tighter ${card.accent}`}>
-            {card.value}
-          </p>
-          {card.caption && (
-            <p className="text-sm text-muted-foreground max-w-md">{card.caption}</p>
-          )}
-          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mt-8 opacity-60 group-hover:opacity-100 transition-opacity">
-            <span>
-              {index + 1} / {total}
-            </span>
-            <ChevronRight className="h-4 w-4" />
-            <span>tap to continue</span>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <EarthquakeShake active={isShaking}>
+        <Card className="relative bg-card/60 backdrop-blur-xl border border-border/60 shadow-2xl shadow-black/30 overflow-hidden">
+          <motion.div
+            animate={isExiting ? { opacity: 0 } : { opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <CardContent className="py-16 px-10 text-center flex flex-col items-center gap-4">
+              <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+                {card.label}
+              </p>
+              <p className={`text-6xl md:text-7xl font-black tracking-tighter ${card.accent}`}>
+                {card.value}
+              </p>
+              {card.caption && (
+                <p className="text-sm text-muted-foreground max-w-md">{card.caption}</p>
+              )}
+              {card.visual && <div className="w-full mt-2">{card.visual}</div>}
+              <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mt-6 opacity-60 group-hover:opacity-100 transition-opacity">
+                <span>
+                  {index + 1} / {total}
+                </span>
+                <ChevronRight className="h-4 w-4" />
+                <span>tap to continue</span>
+              </div>
+            </CardContent>
+          </motion.div>
+          {isExiting && <ParticleBreak element={card.element} />}
+        </Card>
+      </EarthquakeShake>
+    </motion.div>
   );
 }
 
@@ -136,6 +294,7 @@ function RecapCard({
   totalCommits,
   peakHour,
   languageChartData,
+  personality,
   onReplay,
 }: {
   user: User;
@@ -143,6 +302,7 @@ function RecapCard({
   totalCommits: number;
   peakHour: string;
   languageChartData: { name: string; value: number }[];
+  personality: { title: string; emoji: string; desc: string };
   onReplay: () => void;
 }) {
   return (
@@ -160,7 +320,7 @@ function RecapCard({
                 variant="secondary"
                 className="font-mono text-[10px] bg-primary/10 text-primary border-none px-2 py-0 mt-1"
               >
-                DEVPULSE RECAP
+                {personality.emoji} {personality.title.toUpperCase()}
               </Badge>
             </div>
           </div>
@@ -246,7 +406,7 @@ function RecapCard({
   );
 }
 
-function App() {
+function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -256,6 +416,7 @@ function App() {
     return saved === null ? true : saved === "dark";
   });
   const [cardIndex, setCardIndex] = useState(0);
+  const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
     if (isDark) {
@@ -364,6 +525,9 @@ function App() {
     ? Object.entries(stats.languages).map(([name, value]) => ({ name, value }))
     : [];
 
+  const peakHourNum = peakHourEntry ? parseInt(peakHourEntry[0]) : 0;
+  const personality = stats ? getPersonality(stats, totalCommits, peakHourNum) : null;
+
   const statCards: StatCardData[] = stats
     ? [
         {
@@ -371,30 +535,47 @@ function App() {
           value: <NumberTicker value={totalCommits} duration={1500} />,
           caption: "Across every repo, this year so far.",
           accent: "text-primary",
+          element: "fire",
         },
         {
           label: "Longest Streak",
           value: `${stats.streaks.longest} days`,
           caption: "Consecutive days you shipped code.",
           accent: "text-emerald-400",
+          element: "earthquake",
         },
         {
           label: "Most Active Day",
           value: stats.streaks.mostActiveDay,
           caption: "Your single most productive day.",
           accent: "text-violet-400",
+          element: "wind",
         },
         {
-          label: "Peak Coding Hour",
+          label: "Your Coding Clock",
           value: peakHour,
-          caption: "When your commits cluster the most.",
+          caption: "When your commits cluster across the day.",
           accent: "text-amber-400",
+          visual: <ActivityClock hourStats={stats.hour} />,
+          element: "flood",
         },
         {
           label: "Top Language",
           value: topLang,
           caption: "Your most-used language across repos.",
           accent: "text-blue-400",
+          element: "wind",
+        },
+        {
+          label: "You Are A",
+          value: (
+            <span>
+              {personality!.emoji} {personality!.title}
+            </span>
+          ),
+          caption: personality!.desc,
+          accent: "text-pink-400",
+          element: "fire",
         },
       ]
     : [];
@@ -402,8 +583,12 @@ function App() {
   const showingRecap = !!stats && cardIndex >= statCards.length;
 
   const advance = () => {
-    if (!stats) return;
-    setCardIndex((i) => Math.min(i + 1, statCards.length));
+    if (!stats || isExiting) return;
+    setIsExiting(true);
+    setTimeout(() => {
+      setCardIndex((i) => Math.min(i + 1, statCards.length));
+      setIsExiting(false);
+    }, 950);
   };
 
   return (
@@ -439,26 +624,39 @@ function App() {
         )}
 
         {stats && !showingRecap && statCards[cardIndex] && (
-          <StatScreen
-            card={statCards[cardIndex]}
-            index={cardIndex}
-            total={statCards.length}
-            onAdvance={advance}
-          />
+          <AnimatePresence mode="wait">
+            <StatScreen
+              key={cardIndex}
+              card={statCards[cardIndex]}
+              index={cardIndex}
+              total={statCards.length}
+              onAdvance={advance}
+              isExiting={isExiting}
+            />
+          </AnimatePresence>
         )}
 
-        {stats && showingRecap && (
+        {stats && showingRecap && personality && (
           <RecapCard
             user={user}
             stats={stats}
             totalCommits={totalCommits}
             peakHour={peakHour}
             languageChartData={languageChartData}
+            personality={personality}
             onReplay={() => setCardIndex(0)}
           />
         )}
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ParticleEngineProvider>
+      <AppContent />
+    </ParticleEngineProvider>
   );
 }
 
