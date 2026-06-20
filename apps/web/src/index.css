@@ -113,28 +113,15 @@
     animation: pulse-glow 6s ease-in-out infinite;
   }
 }
-
-/* 3. FIXED ISOMETRIC 3D CITY WITH MODERN CSS COLOR-MIX */
-.iso-grid {
-  transform: rotateX(60deg) rotateZ(-45deg);
-  transform-style: preserve-3d;
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
+@keyframes orbit-cw {
+  0%   { transform: rotate(0deg)   translateX(var(--radius)) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(var(--radius)) rotate(-360deg); }
 }
-.iso-pillar {
-  width: 20px;
-  height: 20px;
-  background: color-mix(in oklab, var(--primary) 10%, transparent);
-  transform-style: preserve-3d;
-  position: relative;
+@keyframes orbit-ccw {
+  0%   { transform: rotate(360deg) translateX(var(--radius)) rotate(-360deg); }
+  100% { transform: rotate(0deg)   translateX(var(--radius)) rotate(0deg); }
 }
-/* We define fixed heights for the 3D effect */
-.iso-pillar-top {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background: color-mix(in oklab, var(--primary) 80%, transparent);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  /* This will be moved up using inline transform */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-20px); }
 }
