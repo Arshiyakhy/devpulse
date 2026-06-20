@@ -1,14 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toPng } from "html-to-image";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Moon, Sun, Terminal, ChevronRight, RotateCcw } from "lucide-react";
+import { Moon, Sun, Terminal, ChevronRight, RotateCcw, Download, Share2, Copy, Share } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { OrbitalBackground } from "@/components/ui/OrbitalBackground";
-import { ParticleBreak, EarthquakeShake, ParticleEngineProvider } from "@/components/ui/ParticleBreak";
+import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
+import { SparklesCore } from "@/components/ui/sparkles";
 
 // ---------------- Personality classification ----------------
 // Pure rule-based logic — no AI call needed for this part.
@@ -237,53 +239,61 @@ function StatScreen({
   index,
   total,
   onAdvance,
-  isExiting,
 }: {
   card: StatCardData;
   index: number;
   total: number;
   onAdvance: () => void;
-  isExiting: boolean;
 }) {
-  const isShaking = isExiting && card.element === "earthquake";
   return (
     <motion.div
       key={index}
-      onClick={onAdvance}
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="relative w-full max-w-2xl cursor-pointer select-none group"
+      initial={{ opacity: 0, scale: 0.9, rotateX: -10 }}
+      animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+      exit={{ opacity: 0, scale: 0.9, rotateX: 10 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="w-full max-w-2xl"
     >
-      <EarthquakeShake active={isShaking}>
-        <Card className="relative bg-card/60 backdrop-blur-xl border border-border/60 shadow-2xl shadow-black/30 overflow-hidden">
-          <motion.div
-            animate={isExiting ? { opacity: 0 } : { opacity: 1 }}
-            transition={{ duration: 0.6 }}
-          >
-            <CardContent className="py-16 px-10 text-center flex flex-col items-center gap-4">
-              <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+      <CardContainer className="w-full" containerClassName="py-0">
+        <CardBody className="relative w-full h-auto bg-card/60 backdrop-blur-xl border border-border/60 shadow-2xl shadow-black/30 rounded-2xl">
+          <CardItem translateZ={40} className="w-full">
+            <div
+              onClick={onAdvance}
+              className="cursor-pointer select-none group py-16 px-10 text-center flex flex-col items-center gap-4"
+            >
+              <CardItem translateZ={60} className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
                 {card.label}
-              </p>
-              <p className={`text-6xl md:text-7xl font-black tracking-tighter ${card.accent}`}>
+              </CardItem>
+              <CardItem
+                translateZ={90}
+                className={`text-6xl md:text-7xl font-black tracking-tighter ${card.accent}`}
+              >
                 {card.value}
-              </p>
+              </CardItem>
               {card.caption && (
-                <p className="text-sm text-muted-foreground max-w-md">{card.caption}</p>
+                <CardItem translateZ={50} className="text-sm text-muted-foreground max-w-md">
+                  {card.caption}
+                </CardItem>
               )}
-              {card.visual && <div className="w-full mt-2">{card.visual}</div>}
-              <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mt-6 opacity-60 group-hover:opacity-100 transition-opacity">
+              {card.visual && (
+                <CardItem translateZ={40} className="w-full mt-2">
+                  {card.visual}
+                </CardItem>
+              )}
+              <CardItem
+                translateZ={30}
+                className="flex items-center gap-2 text-xs font-mono text-muted-foreground mt-6 opacity-60 group-hover:opacity-100 transition-opacity"
+              >
                 <span>
                   {index + 1} / {total}
                 </span>
                 <ChevronRight className="h-4 w-4" />
                 <span>tap to continue</span>
-              </div>
-            </CardContent>
-          </motion.div>
-          {isExiting && <ParticleBreak element={card.element} />}
-        </Card>
-      </EarthquakeShake>
+              </CardItem>
+            </div>
+          </CardItem>
+        </CardBody>
+      </CardContainer>
     </motion.div>
   );
 }
@@ -305,104 +315,227 @@ function RecapCard({
   personality: { title: string; emoji: string; desc: string };
   onReplay: () => void;
 }) {
+  const captureRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyDone, setCopyDone] = useState(false);
+
+  const shareText = `I made ${totalCommits} commits and I'm a ${personality.emoji} ${personality.title} according to DevPulse, my GitHub year in review.`;
+
+  const captureImage = async (): Promise<string | null> => {
+    if (!captureRef.current) return null;
+    return toPng(captureRef.current, {
+      cacheBust: true,
+      pixelRatio: 2,
+      backgroundColor:
+        getComputedStyle(document.documentElement).getPropertyValue("--background") || "#000",
+    });
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const dataUrl = await captureImage();
+      if (!dataUrl) return;
+      const link = document.createElement("a");
+      link.download = `devpulse-${user.username}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Failed to export image:", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    try {
+      const dataUrl = await captureImage();
+      if (!dataUrl) return;
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], `devpulse-${user.username}.png`, { type: "image/png" });
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: "My DevPulse Recap",
+          text: shareText,
+        });
+      } else {
+        // fallback for browsers without native share support
+        handleDownload();
+      }
+    } catch (err) {
+      // user cancelling the share sheet also throws — ignore that case
+      if ((err as Error)?.name !== "AbortError") {
+        console.error("Share failed:", err);
+      }
+    }
+  };
+
+  const handleCopyImage = async () => {
+    setCopying(true);
+    try {
+      const dataUrl = await captureImage();
+      if (!dataUrl) return;
+      const blob = await (await fetch(dataUrl)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      setCopyDone(true);
+      setTimeout(() => setCopyDone(false), 2000);
+    } catch (err) {
+      console.error("Copy failed:", err);
+    } finally {
+      setCopying(false);
+    }
+  };
+
+  const handleShareX = () => {
+    const url = new URL("https://twitter.com/intent/tweet");
+    url.searchParams.set("text", shareText);
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  };
+
   return (
-    <Card className="w-full max-w-3xl bg-card/70 backdrop-blur-xl border border-primary/30 shadow-2xl shadow-primary/10 overflow-hidden animate-in fade-in zoom-in-95 duration-700">
-      <CardContent className="p-8 md:p-10 flex flex-col gap-8">
-        <div className="flex items-center justify-between border-b border-border/40 pb-6">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12 ring-2 ring-primary/40">
-              <AvatarImage src={user.avatarUrl} alt={user.username} />
-              <AvatarFallback>{user.username[0]?.toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-bold text-lg leading-tight">{user.username}</p>
-              <Badge
-                variant="secondary"
-                className="font-mono text-[10px] bg-primary/10 text-primary border-none px-2 py-0 mt-1"
-              >
-                {personality.emoji} {personality.title.toUpperCase()}
-              </Badge>
-            </div>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onReplay}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Replay
-          </Button>
-        </div>
+    <div className="relative z-0 w-full max-w-3xl flex flex-col items-center">
+      {/* Sparkles layer sits behind the card */}
+      <div className="absolute inset-0 -z-10 scale-110">
+        <SparklesCore
+          id="recap-sparkles"
+          background="transparent"
+          minSize={0.5}
+          maxSize={1.4}
+          particleDensity={60}
+          className="w-full h-full"
+          particleColor="var(--primary)"
+        />
+      </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <p className="text-xs font-mono uppercase text-muted-foreground tracking-wider">
-              Commits
-            </p>
-            <p className="text-3xl font-bold text-primary mt-1">{totalCommits}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-mono uppercase text-muted-foreground tracking-wider">
-              Streak
-            </p>
-            <p className="text-3xl font-bold mt-1">
-              {stats.streaks.longest}
-              <span className="text-base text-muted-foreground"> d</span>
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-mono uppercase text-muted-foreground tracking-wider">
-              Peak Hour
-            </p>
-            <p className="text-3xl font-bold mt-1">{peakHour}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-mono uppercase text-muted-foreground tracking-wider">
-              Top Day
-            </p>
-            <p className="text-2xl font-bold mt-1 truncate">{stats.streaks.mostActiveDay}</p>
-          </div>
-        </div>
-
-        <div>
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3">
-            Language Core
-          </p>
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={languageChartData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={4}
-                >
-                  {languageChartData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-md)",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex flex-wrap gap-3 justify-center">
-              {languageChartData.map((lang, i) => (
-                <div key={lang.name} className="flex items-center gap-2 text-sm">
-                  <span
-                    className="w-3 h-3 rounded-sm"
-                    style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                  />
-                  <span className="font-mono text-muted-foreground">{lang.name}</span>
+      <CardContainer containerClassName="py-0">
+        <CardBody className="w-full bg-card/80 backdrop-blur-xl border border-primary/30 shadow-2xl shadow-primary/10 rounded-2xl">
+          <CardItem translateZ={30} className="w-full">
+            <div ref={captureRef} className="p-8 md:p-10 flex flex-col gap-8 bg-card rounded-2xl">
+              <div className="flex items-center justify-between border-b border-border/40 pb-6">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12 ring-2 ring-primary/40">
+                    <AvatarImage src={user.avatarUrl} alt={user.username} />
+                    <AvatarFallback>{user.username[0]?.toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-bold text-lg leading-tight">{user.username}</p>
+                    <Badge
+                      variant="secondary"
+                      className="font-mono text-[10px] bg-primary/10 text-primary border-none px-2 py-0 mt-1"
+                    >
+                      {personality.emoji} {personality.title.toUpperCase()}
+                    </Badge>
+                  </div>
                 </div>
-              ))}
+                <p className="text-xs font-mono text-muted-foreground tracking-widest">
+                  DEVPULSE
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <p className="text-xs font-mono uppercase text-muted-foreground tracking-wider">
+                    Commits
+                  </p>
+                  <p className="text-3xl font-bold text-primary mt-1">{totalCommits}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-mono uppercase text-muted-foreground tracking-wider">
+                    Streak
+                  </p>
+                  <p className="text-3xl font-bold mt-1">
+                    {stats.streaks.longest}
+                    <span className="text-base text-muted-foreground"> d</span>
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-mono uppercase text-muted-foreground tracking-wider">
+                    Peak Hour
+                  </p>
+                  <p className="text-3xl font-bold mt-1">{peakHour}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-mono uppercase text-muted-foreground tracking-wider">
+                    Top Day
+                  </p>
+                  <p className="text-2xl font-bold mt-1 truncate">{stats.streaks.mostActiveDay}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3">
+                  Language Core
+                </p>
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <Pie
+                        data={languageChartData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={4}
+                      >
+                        {languageChartData.map((_, index) => (
+                          <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "var(--card)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius-md)",
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    {languageChartData.map((lang, i) => (
+                      <div key={lang.name} className="flex items-center gap-2 text-sm">
+                        <span
+                          className="w-3 h-3 rounded-sm"
+                          style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                        />
+                        <span className="font-mono text-muted-foreground">{lang.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+          </CardItem>
+        </CardBody>
+      </CardContainer>
+
+      <div className="relative z-30 flex flex-wrap items-center justify-center gap-3 mt-10">
+        <Button variant="outline" onClick={onReplay}>
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Replay
+        </Button>
+        <Button variant="outline" onClick={handleShareX}>
+          <Share2 className="h-4 w-4 mr-2" />
+          Share on X
+        </Button>
+        <Button variant="outline" onClick={handleCopyImage} disabled={copying}>
+          <Copy className="h-4 w-4 mr-2" />
+          {copyDone ? "Copied!" : copying ? "Copying..." : "Copy Image"}
+        </Button>
+        {typeof navigator !== "undefined" && "share" in navigator && (
+          <Button variant="outline" onClick={handleNativeShare}>
+            <Share className="h-4 w-4 mr-2" />
+            Share
+          </Button>
+        )}
+        <Button onClick={handleDownload} disabled={downloading}>
+          <Download className="h-4 w-4 mr-2" />
+          {downloading ? "Saving..." : "Download Image"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -416,7 +549,6 @@ function AppContent() {
     return saved === null ? true : saved === "dark";
   });
   const [cardIndex, setCardIndex] = useState(0);
-  const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
     if (isDark) {
@@ -583,12 +715,8 @@ function AppContent() {
   const showingRecap = !!stats && cardIndex >= statCards.length;
 
   const advance = () => {
-    if (!stats || isExiting) return;
-    setIsExiting(true);
-    setTimeout(() => {
-      setCardIndex((i) => Math.min(i + 1, statCards.length));
-      setIsExiting(false);
-    }, 950);
+    if (!stats) return;
+    setCardIndex((i) => Math.min(i + 1, statCards.length));
   };
 
   return (
@@ -631,7 +759,6 @@ function AppContent() {
               index={cardIndex}
               total={statCards.length}
               onAdvance={advance}
-              isExiting={isExiting}
             />
           </AnimatePresence>
         )}
@@ -653,11 +780,7 @@ function AppContent() {
 }
 
 function App() {
-  return (
-    <ParticleEngineProvider>
-      <AppContent />
-    </ParticleEngineProvider>
-  );
+  return <AppContent />;
 }
 
 export default App;
