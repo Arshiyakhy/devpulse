@@ -2,9 +2,10 @@
   "name": "@devpulse/db",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "scripts": {
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+  "build": "tsc"
   },
   "keywords": [],
   "author": "",
