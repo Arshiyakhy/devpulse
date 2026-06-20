@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toPng } from "html-to-image";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Moon, Sun, Terminal, ChevronRight, RotateCcw, Download, Share2, Copy, Share } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
@@ -170,6 +169,8 @@ interface Stats {
 }
 
 const COLORS = ["#3fb950", "#238636", "#2ea043", "#1f6feb", "#8b5cf6", "#f59e0b"];
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 function formatHour(hour: string) {
   const h = parseInt(hour);
@@ -560,7 +561,7 @@ function AppContent() {
   }, [isDark]);
 
   useEffect(() => {
-    fetch("http://localhost:3000/auth/me", { credentials: "include" })
+    fetch(`${API_URL}/auth/me`, { credentials: "include" })
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error("Not logged in");
@@ -578,7 +579,7 @@ function AppContent() {
   useEffect(() => {
     if (!user) return;
     setStatsLoading(true);
-    fetch("http://localhost:3000/api/commits", { credentials: "include" })
+    fetch(`${API_URL}/api/commits`, { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         setStats(data);
@@ -588,7 +589,7 @@ function AppContent() {
   }, [user]);
 
   const handleLogout = async () => {
-    await fetch("http://localhost:3000/auth/logout", { credentials: "include" });
+    await fetch(`${API_URL}/auth/logout`, { credentials: "include" });
     setUser(null);
     setStats(null);
     setCardIndex(0);
@@ -627,7 +628,7 @@ function AppContent() {
             className="h-14 px-10 text-lg font-bold tracking-wide shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-1 transition-all"
             asChild
           >
-            <a href="http://localhost:3000/auth/login">Login with GitHub</a>
+            <a href={`${API_URL}/auth/login`}>Login with GitHub</a>
           </Button>
         </div>
       </div>
