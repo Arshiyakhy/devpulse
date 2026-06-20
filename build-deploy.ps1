@@ -53,4 +53,13 @@ $deployPkg.dependencies["@devpulse/db"] = "file:./local-db"
 $deployPkg | ConvertTo-Json -Depth 10 | Set-Content "$deployDir/package.json"
 
 Write-Host "Done. Deployment folder ready at ./$deployDir" -ForegroundColor Green
-Write-Host "Next: cd $deployDir, then zip its contents for Elastic Beanstalk upload." -ForegroundColor Yellow
+
+# Zip using .NET's ZipFile class instead of Compress-Archive, since
+# Compress-Archive can write backslash path separators on Windows, which
+# breaks unzip on the Linux-based Elastic Beanstalk instances.
+$zipPath = "$PWD\devpulse-api.zip"
+Remove-Item $zipPath -ErrorAction SilentlyContinue
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::CreateFromDirectory("$PWD\$deployDir", $zipPath)
+
+Write-Host "Zipped to ./devpulse-api.zip - ready to upload to Elastic Beanstalk." -ForegroundColor Yellow
