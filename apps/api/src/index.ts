@@ -118,7 +118,6 @@ app.get("/auth/callback", async (c) => {
     userId: user!.id,
     expiresAt: expiresAt,
   });
-  // secure + sameSite "None" is required for the cookie to survive a
   // cross-domain redirect (frontend and backend on different domains).
   // This requires HTTPS, which is why we moved off plain Elastic Beanstalk.
   const isProduction = process.env.NODE_ENV === "production";
@@ -271,7 +270,6 @@ app.get("/api/commits", requireAuth, async (c) => {
 
 export { app };
 
-// Only start a standalone Node server when run directly (local dev / EB).
 // Vercel imports `app` from the separate api/index.ts entry point instead
 // and never executes this block.
 if (process.env.VERCEL !== "1") {
