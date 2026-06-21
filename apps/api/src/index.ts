@@ -24,10 +24,14 @@ if (fs.existsSync(envPath)) {
   config({ path: envPath });
 }
 
+// Allow either the local dev frontend or the deployed frontend, controlled
+// by an env var so we don't hardcode URLs that change between environments.
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+
 app.use(
   "*",
   cors({
-    origin: "http://localhost:5173",
+    origin: FRONTEND_URL,
     credentials: true,
   }),
 );
@@ -114,14 +118,18 @@ app.get("/auth/callback", async (c) => {
     userId: user!.id,
     expiresAt: expiresAt,
   });
+  // secure + sameSite "None" is required for the cookie to survive a
+  // cross-domain redirect (frontend and backend on different domains).
+  // This requires HTTPS, which is why we moved off plain Elastic Beanstalk.
+  const isProduction = process.env.NODE_ENV === "production";
   setCookie(c, "session_id", sessionId, {
     httpOnly: true,
-    secure: false, // true in production (requires HTTPS)
-    sameSite: "Lax",
+    secure: isProduction,
+    sameSite: isProduction ? "None" : "Lax",
     maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
     path: "/",
   });
-  return c.redirect("http://localhost:5173");
+  return c.redirect(FRONTEND_URL);
 });
 app.get("/auth/me", requireAuth, async (c) => {
   const user = c.get("user");
@@ -260,6 +268,14 @@ app.get("/api/commits", requireAuth, async (c) => {
     },
   });
 });
-const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-serve({ fetch: app.fetch, port });
-console.log(`Server running on port ${port}`);
+
+export { app };
+
+// Only start a standalone Node server when run directly (local dev / EB).
+// Vercel imports `app` from the separate api/index.ts entry point instead
+// and never executes this block.
+if (process.env.VERCEL !== "1") {
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+  serve({ fetch: app.fetch, port });
+  console.log(`Server running on port ${port}`);
+}
