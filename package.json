@@ -16,5 +16,6 @@
       "onFail": "download"
     }
   },
+  "packageManager": "pnpm@11.8.0",
   "type": "module"
 }
