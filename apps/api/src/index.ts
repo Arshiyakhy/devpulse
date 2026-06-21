@@ -180,7 +180,13 @@ app.get("/api/commits", requireAuth, async (c) => {
     },
   );
   const allCommitsPerRepo = await Promise.all(commitPromises);
-  const allCommits = allCommitsPerRepo.flat();
+  const allCommitsRaw = allCommitsPerRepo.flat();
+  // Filter out malformed entries — some repos (empty repos, certain forks,
+  // or rate-limited responses) can return objects without the expected
+  // commit.commit.author.date shape, which would otherwise crash here.
+  const allCommits = allCommitsRaw.filter(
+    (commit: any) => commit?.commit?.author?.date,
+  );
   const dayNames = [
     "Sunday",
     "Monday",
