@@ -260,5 +260,6 @@ app.get("/api/commits", requireAuth, async (c) => {
     },
   });
 });
-serve({ fetch: app.fetch, port: 3000 });
-console.log("Server running on http://localhost:3000");
+const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+serve({ fetch: app.fetch, port });
+console.log(`Server running on port ${port}`);
