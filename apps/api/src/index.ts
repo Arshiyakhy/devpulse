@@ -234,18 +234,19 @@ app.get("/api/commits", requireAuth, async (c) => {
     uniqueDatesSet.add(dateOnly);
   }
   const sortedDates = Array.from(uniqueDatesSet).sort();
-  let currentStreak = 1;
-  let longestStreak = 1;
+  let currentStreak = sortedDates.length > 0 ? 1 : 0;
+  let longestStreak = sortedDates.length > 0 ? 1 : 0;
   for (let i = 1; i < sortedDates.length; i++) {
-    const currentDate = new Date(sortedDates[i]!);
-    const previousDate = new Date(sortedDates[i - 1]!);
-    const dayDifference =
-      (currentDate.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (dayDifference === 1) currentStreak!++;
+    const current = sortedDates[i]!.split("-").map(Number);
+    const previous = sortedDates[i - 1]!.split("-").map(Number);
+    const currentDate = new Date(current[0]!, current[1]! - 1, current[2]!);
+    const previousDate = new Date(previous[0]!, previous[1]! - 1, previous[2]!);
+    const dayDifference = Math.round(
+      (currentDate.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (dayDifference === 1) currentStreak++;
     else currentStreak = 1;
-    if (currentStreak > longestStreak) {
-      longestStreak = currentStreak;
-    }
+    if (currentStreak > longestStreak) longestStreak = currentStreak;
   }
   const commitsByDate: Record<string, number> = {};
   for (const commit of allCommits) {
