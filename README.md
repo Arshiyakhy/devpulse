@@ -2,7 +2,7 @@
 
 **Your GitHub year, beautifully wrapped.** DevPulse analyzes your GitHub commit activity and turns it into a Spotify Wrapped–style interactive recap — total commits, longest streak, peak coding hours, top language, and a data-driven "developer personality," all wrapped in a shareable, animated card sequence.
 
-🔗 **Live demo:** https://d38yfmv81pq1b8.cloudfront.net
+🔗 **Live demo:** https://d38yfmv81pq1b8.cloudfront.net  (the website is down)
 
 ---
 
